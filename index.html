@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频分段章节播放器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #1a1a2e;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            max-width: 1400px;
+            width: 100%;
+        }
+
+        .player-section {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .video-wrapper {
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        video {
+            width: 100%;
+            display: block;
+        }
+
+        .controls {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            min-width: 150px;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 6px;
+            background: #0f0f23;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        input[type="text"]::placeholder {
+            color: #666;
+        }
+
+        input[type="text"]:focus {
+            outline: 2px solid #00a1d6;
+        }
+
+
+
+
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-add {
+            background: #00a1d6;
+            color: #fff;
+        }
+
+        .btn-add:hover {
+            background: #008fb3;
+        }
+
+        .btn-mark {
+            background: #fb7299;
+            color: #fff;
+        }
+
+        .btn-mark:hover {
+            background: #e65b82;
+        }
+
+        .chapters-section {
+            width: 350px;
+            min-width: 300px;
+        }
+
+        .chapters-panel {
+            background: #16213e;
+            border-radius: 8px;
+            padding: 20px;
+            height: fit-content;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+
+        .chapters-panel h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chapter-count {
+            background: #00a1d6;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        .chapter-list {
+            list-style: none;
+        }
+
+        .chapter-item {
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            background: #0f0f23;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chapter-item:hover {
+            background: #1a1a3d;
+            transform: translateX(3px);
+        }
+
+        .chapter-item.active {
+            background: #00a1d6;
+        }
+
+        .chapter-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .chapter-title {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chapter-time {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .chapter-item.active .chapter-time {
+            color: #fff;
+        }
+
+        .chapter-actions {
+            display: flex;
+            gap: 5px;
+            margin-left: 10px;
+        }
+
+        .btn-delete {
+            background: transparent;
+            color: #ff6b6b;
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        .btn-delete:hover {
+            background: rgba(255, 107, 107, 0.2);
+        }
+
+        .progress-bar {
+            position: relative;
+            height: 5px;
+            background: #0f0f23;
+            border-radius: 3px;
+            margin-top: 15px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #00a1d6;
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.1s;
+        }
+
+        .chapter-markers {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 100%;
+            pointer-events: none;
+        }
+
+        .chapter-marker {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #fb7299;
+            border-radius: 50%;
+            transform: translateX(-50%);
+            cursor: pointer;
+            pointer-events: auto;
+            border: 2px solid #fff;
+            z-index: 10;
+        }
+
+        .chapter-marker:hover {
+            transform: translateX(-50%) scale(1.3);
+            background: #ff477e;
+        }
+
+        .note-marker {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 12px solid #fff;
+            transform: translateX(-50%);
+            cursor: pointer;
+            pointer-events: auto;
+            z-index: 5;
+        }
+
+        .note-marker:hover {
+            transform: translateX(-50%) scale(1.3);
+            border-bottom-color: #ddd;
+        }
+
+        .header-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .btn-toggle {
+            background: transparent;
+            color: #00a1d6;
+            padding: 5px 10px;
+            font-size: 12px;
+            border: 1px solid #00a1d6;
+        }
+
+        .btn-toggle:hover {
+            background: rgba(0, 161, 214, 0.2);
+        }
+
+        .chapter-list.collapsed,
+        .note-list.collapsed {
+            display: none;
+        }
+
+
+
+        .note-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .note-modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .note-modal-content {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 25px;
+            width: 90%;
+            max-width: 500px;
+            transform: scale(0.9);
+            transition: transform 0.3s;
+        }
+
+        .note-modal.show .note-modal-content {
+            transform: scale(1);
+        }
+
+        .note-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .note-modal-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .btn-close-modal {
+            background: transparent;
+            color: #999;
+            padding: 5px 10px;
+            font-size: 20px;
+        }
+
+        .btn-close-modal:hover {
+            color: #fff;
+        }
+
+        .note-textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 15px;
+            border: 1px solid #2a2a4e;
+            border-radius: 8px;
+            background: #0f0f23;
+            color: #fff;
+            font-size: 14px;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+
+        .note-textarea:focus {
+            outline: none;
+            border-color: #00a1d6;
+        }
+
+        .note-time {
+            color: #999;
+            font-size: 13px;
+            margin-bottom: 15px;
+        }
+
+        .note-modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .btn-save-note {
+            background: #00a1d6;
+            color: #fff;
+        }
+
+        .btn-save-note:hover {
+            background: #008fb3;
+        }
+
+        .btn-cancel-note {
+            background: #2a2a4e;
+            color: #fff;
+        }
+
+        .btn-cancel-note:hover {
+            background: #3a3a5e;
+        }
+
+        .notes-section {
+            width: 350px;
+            min-width: 300px;
+        }
+
+        .notes-panel {
+            background: #16213e;
+            border-radius: 8px;
+            padding: 20px;
+            height: fit-content;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+
+        .notes-panel h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .note-count {
+            background: #ff9a3c;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        .note-list {
+            list-style: none;
+        }
+
+        .note-item {
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            background: #0f0f23;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .note-item:hover {
+            background: #1a1a3d;
+            transform: translateX(3px);
+        }
+
+        .note-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .note-item-content {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.5;
+        }
+
+        .note-item-time {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .note-actions {
+            display: flex;
+            gap: 5px;
+            margin-left: 10px;
+        }
+
+        .progress-bar {
+            cursor: pointer;
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                flex-wrap: wrap;
+            }
+
+            .chapters-section,
+            .notes-section {
+                width: calc(50% - 10px);
+            }
+        }
+
+        @media (max-width: 900px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .chapters-section,
+            .notes-section {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="player-section">
+            <div class="video-wrapper">
+                <video id="videoPlayer" controls>
+                    <source src="video.mp4" type="video/mp4">
+                    您的浏览器不支持视频播放
+                </video>
+            </div>
+
+            <div class="controls">
+                <div class="input-group">
+                    <input type="text" id="chapterTitle" placeholder="输入章节标题...">
+                    <button class="btn-mark" id="btnMarkCurrent">标记当前时间为章节</button>
+                </div>
+
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-fill" id="progressFill"></div>
+                    <div class="chapter-markers" id="chapterMarkers"></div>
+                    <div class="chapter-markers" id="noteMarkers"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chapters-section">
+            <div class="chapters-panel">
+                <div class="header-wrapper">
+                    <h2>
+                        章节列表
+                        <span class="chapter-count" id="chapterCount">0</span>
+                    </h2>
+                    <button class="btn-toggle" id="btnToggleChapters">折叠</button>
+                </div>
+                <ul class="chapter-list" id="chapterList"></ul>
+            </div>
+        </div>
+
+        <div class="notes-section">
+            <div class="notes-panel">
+                <div class="header-wrapper">
+                    <h2>
+                        笔记列表
+                        <span class="note-count" id="noteCount">0</span>
+                    </h2>
+                    <button class="btn-toggle" id="btnToggleNotes">折叠</button>
+                </div>
+                <ul class="note-list" id="noteList"></ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="note-modal" id="noteModal">
+        <div class="note-modal-content">
+            <div class="note-modal-header">
+                <span class="note-modal-title" id="noteModalTitle">添加笔记</span>
+                <button class="btn-close-modal" id="btnCloseModal">&times;</button>
+            </div>
+            <div class="note-time" id="noteTime"></div>
+            <textarea class="note-textarea" id="noteTextarea" placeholder="输入笔记内容..."></textarea>
+            <div class="note-modal-actions">
+                <button class="btn-cancel-note" id="btnCancelNote">取消</button>
+                <button class="btn-save-note" id="btnSaveNote">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let chapters = [];
+        let currentChapterIndex = -1;
+        let isChaptersCollapsed = false;
+        
+        let notes = [];
+        let isNotesCollapsed = false;
+        let currentNoteId = null;
+        let videoFileName = null;
+
+        const videoPlayer = document.getElementById('videoPlayer');
+        const chapterTitleInput = document.getElementById('chapterTitle');
+        const btnMarkCurrent = document.getElementById('btnMarkCurrent');
+        const chapterList = document.getElementById('chapterList');
+        const chapterCount = document.getElementById('chapterCount');
+        const progressFill = document.getElementById('progressFill');
+        const chapterMarkers = document.getElementById('chapterMarkers');
+        const btnToggleChapters = document.getElementById('btnToggleChapters');
+        const progressBar = document.getElementById('progressBar');
+        const noteMarkers = document.getElementById('noteMarkers');
+        const noteModal = document.getElementById('noteModal');
+        const noteModalTitle = document.getElementById('noteModalTitle');
+        const noteTextarea = document.getElementById('noteTextarea');
+        const noteTimeDisplay = document.getElementById('noteTime');
+        const btnCloseModal = document.getElementById('btnCloseModal');
+        const btnSaveNote = document.getElementById('btnSaveNote');
+        const btnCancelNote = document.getElementById('btnCancelNote');
+        const noteList = document.getElementById('noteList');
+        const noteCount = document.getElementById('noteCount');
+        const btnToggleNotes = document.getElementById('btnToggleNotes');
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function generateNoteId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        function getStorageKey() {
+            return videoFileName ? `video_notes_${videoFileName}` : 'video_notes_default';
+        }
+
+        function saveNotesToStorage() {
+            const key = getStorageKey();
+            localStorage.setItem(key, JSON.stringify(notes));
+        }
+
+        function loadNotesFromStorage() {
+            const key = getStorageKey();
+            const saved = localStorage.getItem(key);
+            if (saved) {
+                try {
+                    notes = JSON.parse(saved);
+                } catch (e) {
+                    notes = [];
+                }
+            } else {
+                notes = [];
+            }
+            renderNotes();
+            renderNoteMarkers();
+        }
+
+        function addNote(time, content) {
+            const note = {
+                id: generateNoteId(),
+                time,
+                content,
+                createdAt: Date.now()
+            };
+            notes.push(note);
+            notes.sort((a, b) => a.time - b.time);
+            saveNotesToStorage();
+            renderNotes();
+            renderNoteMarkers();
+            return note;
+        }
+
+        function updateNote(id, content) {
+            const noteIndex = notes.findIndex(n => n.id === id);
+            if (noteIndex !== -1) {
+                notes[noteIndex].content = content;
+                notes[noteIndex].updatedAt = Date.now();
+                saveNotesToStorage();
+                renderNotes();
+                renderNoteMarkers();
+            }
+        }
+
+        function deleteNote(id) {
+            notes = notes.filter(n => n.id !== id);
+            saveNotesToStorage();
+            renderNotes();
+            renderNoteMarkers();
+        }
+
+        function renderNotes() {
+            noteList.innerHTML = '';
+            noteCount.textContent = notes.length;
+
+            notes.forEach((note) => {
+                const li = document.createElement('li');
+                li.className = 'note-item';
+
+                li.innerHTML = `
+                    <div class="note-info">
+                        <div class="note-item-content">${escapeHtml(note.content)}</div>
+                        <div class="note-item-time">${formatTime(note.time)}</div>
+                    </div>
+                    <div class="note-actions">
+                        <button class="btn-delete" onclick="openEditNoteModal('${note.id}')">编辑</button>
+                        <button class="btn-delete" onclick="deleteNote('${note.id}')">删除</button>
+                    </div>
+                `;
+
+                li.addEventListener('click', (e) => {
+                    if (!e.target.classList.contains('btn-delete')) {
+                        videoPlayer.currentTime = note.time;
+                        videoPlayer.play();
+                    }
+                });
+
+                noteList.appendChild(li);
+            });
+        }
+
+        function renderNoteMarkers() {
+            noteMarkers.innerHTML = '';
+
+            if (!videoPlayer.duration) return;
+
+            notes.forEach((note) => {
+                const marker = document.createElement('div');
+                marker.className = 'note-marker';
+                marker.style.left = `${(note.time / videoPlayer.duration) * 100}%`;
+                marker.dataset.noteId = note.id;
+
+                marker.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    videoPlayer.currentTime = note.time;
+                    videoPlayer.play();
+                });
+
+                noteMarkers.appendChild(marker);
+            });
+        }
+
+
+
+        function openAddNoteModal(time) {
+            currentNoteId = null;
+            noteModalTitle.textContent = '添加笔记';
+            noteTextarea.value = '';
+            noteTimeDisplay.textContent = `时间: ${formatTime(time)}`;
+            noteModal.classList.add('show');
+            noteTextarea.focus();
+        }
+
+        function openEditNoteModal(id) {
+            const note = notes.find(n => n.id === id);
+            if (note) {
+                currentNoteId = id;
+                noteModalTitle.textContent = '编辑笔记';
+                noteTextarea.value = note.content;
+                noteTimeDisplay.textContent = `时间: ${formatTime(note.time)}`;
+                noteModal.classList.add('show');
+                noteTextarea.focus();
+            }
+        }
+
+        function closeNoteModal() {
+            noteModal.classList.remove('show');
+            currentNoteId = null;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function addChapter(time, title) {
+            chapters.push({ time, title });
+            chapters.sort((a, b) => a.time - b.time);
+            renderChapters();
+            renderMarkers();
+        }
+
+        function deleteChapter(index) {
+            chapters.splice(index, 1);
+            renderChapters();
+            renderMarkers();
+        }
+
+        function renderChapters() {
+            chapterList.innerHTML = '';
+            chapterCount.textContent = chapters.length;
+
+            chapters.forEach((chapter, index) => {
+                const li = document.createElement('li');
+                li.className = 'chapter-item';
+                if (index === currentChapterIndex) {
+                    li.classList.add('active');
+                }
+
+                li.innerHTML = `
+                    <div class="chapter-info">
+                        <div class="chapter-title">${chapter.title}</div>
+                        <div class="chapter-time">${formatTime(chapter.time)}</div>
+                    </div>
+                    <div class="chapter-actions">
+                        <button class="btn-delete" onclick="deleteChapter(${index})">删除</button>
+                    </div>
+                `;
+
+                li.addEventListener('click', (e) => {
+                    if (!e.target.classList.contains('btn-delete')) {
+                        videoPlayer.currentTime = chapter.time;
+                        videoPlayer.play();
+                    }
+                });
+
+                chapterList.appendChild(li);
+            });
+        }
+
+        function renderMarkers() {
+            chapterMarkers.innerHTML = '';
+
+            if (!videoPlayer.duration) return;
+
+            chapters.forEach((chapter, index) => {
+                const marker = document.createElement('div');
+                marker.className = 'chapter-marker';
+                marker.style.left = `${(chapter.time / videoPlayer.duration) * 100}%`;
+                marker.title = `${chapter.title} (${formatTime(chapter.time)})`;
+
+                marker.addEventListener('click', () => {
+                    videoPlayer.currentTime = chapter.time;
+                    videoPlayer.play();
+                });
+
+                chapterMarkers.appendChild(marker);
+            });
+        }
+
+        function updateCurrentChapter() {
+            const currentTime = videoPlayer.currentTime;
+            let newIndex = -1;
+
+            for (let i = chapters.length - 1; i >= 0; i--) {
+                if (currentTime >= chapters[i].time) {
+                    newIndex = i;
+                    break;
+                }
+            }
+
+            if (newIndex !== currentChapterIndex) {
+                currentChapterIndex = newIndex;
+                renderChapters();
+            }
+        }
+
+
+
+        btnMarkCurrent.addEventListener('click', () => {
+            const title = chapterTitleInput.value.trim() || `章节 ${chapters.length + 1}`;
+            addChapter(videoPlayer.currentTime, title);
+            chapterTitleInput.value = '';
+        });
+
+
+
+        btnToggleChapters.addEventListener('click', () => {
+            isChaptersCollapsed = !isChaptersCollapsed;
+            chapterList.classList.toggle('collapsed', isChaptersCollapsed);
+            btnToggleChapters.textContent = isChaptersCollapsed ? '展开' : '折叠';
+        });
+
+        btnToggleNotes.addEventListener('click', () => {
+            isNotesCollapsed = !isNotesCollapsed;
+            noteList.classList.toggle('collapsed', isNotesCollapsed);
+            btnToggleNotes.textContent = isNotesCollapsed ? '展开' : '折叠';
+        });
+
+        progressBar.addEventListener('click', (e) => {
+            if (!videoPlayer.duration) return;
+            
+            const rect = progressBar.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const percentage = clickX / rect.width;
+            const time = percentage * videoPlayer.duration;
+            
+            openAddNoteModal(time);
+        });
+
+        btnCloseModal.addEventListener('click', closeNoteModal);
+        btnCancelNote.addEventListener('click', closeNoteModal);
+        
+        noteModal.addEventListener('click', (e) => {
+            if (e.target === noteModal) {
+                closeNoteModal();
+            }
+        });
+
+        btnSaveNote.addEventListener('click', () => {
+            const content = noteTextarea.value.trim();
+            if (!content) return;
+            
+            if (currentNoteId) {
+                updateNote(currentNoteId, content);
+            } else {
+                const time = parseFloat(noteTimeDisplay.textContent.match(/\d+:\d+/)[0].split(':').reduce((acc, val, idx) => acc + parseInt(val) * Math.pow(60, 1 - idx), 0));
+                addNote(time, content);
+            }
+            
+            closeNoteModal();
+        });
+
+        videoPlayer.addEventListener('timeupdate', () => {
+            const progress = (videoPlayer.currentTime / videoPlayer.duration) * 100;
+            progressFill.style.width = `${progress}%`;
+            updateCurrentChapter();
+        });
+
+        videoPlayer.addEventListener('loadedmetadata', () => {
+            renderMarkers();
+            renderNoteMarkers();
+        });
+
+        // 初始化加载默认视频
+        videoFileName = 'video.mp4'.replace(/[^a-zA-Z0-9_\-.]/g, '_');
+        videoPlayer.src = 'video.mp4';
+        videoPlayer.load();
+        
+        chapters = [];
+        currentChapterIndex = -1;
+        addChapter(0, '开始');
+        
+        loadNotesFromStorage();
+    </script>
+</body>
+</html>
